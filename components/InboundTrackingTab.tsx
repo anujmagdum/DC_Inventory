@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { InboundOrderTracking, CompanyProfile, ReceivedGood } from '../types';
 import { SearchableSupplierDropdown } from './SearchableSupplierDropdown';
+import { FetchPurchaseInvoicesModal } from './FetchPurchaseInvoicesModal';
 
 interface InboundTrackingTabProps {
   orders?: InboundOrderTracking[];
@@ -108,6 +109,26 @@ export const InboundTrackingTab: React.FC<InboundTrackingTabProps> = ({
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<InboundOrderTracking | null>(null);
+  const [isFetchModalOpen, setIsFetchModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleImportInvoices = (newOrders: InboundOrderTracking[]) => {
+    if (newOrders.length === 0) return;
+    setOrders(prev => [...newOrders, ...prev]);
+
+    if (addLogEntry) {
+      addLogEntry(
+        'IMPORT_PURCHASE_INVOICES',
+        `Imported ${newOrders.length} purchase invoices into Factory Inbound Tracking.`
+      );
+    }
+
+    const message = `${newOrders.length} invoice${newOrders.length > 1 ? 's' : ''} imported to Inbound Tracking successfully.`;
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === message ? null : prev));
+    }, 4000);
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -500,21 +521,37 @@ export const InboundTrackingTab: React.FC<InboundTrackingTabProps> = ({
           </div>
         </div>
 
-        {/* Right: Buttons */}
+        {/* Right: Buttons (Left to Right: Export CSV, Fetch Invoices, + Add Inbound Order) */}
         <div className="flex items-center gap-2">
+          {/* 1. Export CSV (Secondary / Ghost button) */}
           <button
             onClick={handleExportCSV}
             title="Export tracking table to CSV"
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+            className="px-2.5 sm:px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
           >
-            <span>📥 Export CSV</span>
+            <span className="text-sm">📥</span>
+            <span className="hidden sm:inline">Export CSV</span>
           </button>
 
+          {/* 2. Fetch Invoices (Secondary button with sync/download icon 🔄) */}
+          <button
+            onClick={() => setIsFetchModalOpen(true)}
+            title="Fetch Purchase Invoices from Finance"
+            className="px-2.5 sm:px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+          >
+            <span className="text-sm">🔄</span>
+            <span className="hidden sm:inline">Fetch Invoices</span>
+          </button>
+
+          {/* 3. + Add Inbound Order (Primary high-emphasis button) */}
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+            title="Add New Inbound Order"
+            className="px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <span>➕ Add Inbound Order</span>
+            <span className="text-sm">➕</span>
+            <span className="hidden sm:inline">Add Inbound Order</span>
+            <span className="sm:hidden">Add Order</span>
           </button>
         </div>
       </div>
@@ -570,8 +607,13 @@ export const InboundTrackingTab: React.FC<InboundTrackingTabProps> = ({
 
                       {/* Item Ordered */}
                       <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900 leading-snug">
-                          {order.item_name}
+                        <div className="font-bold text-slate-900 leading-snug flex items-center flex-wrap gap-1">
+                          <span>{order.item_name}</span>
+                          {order.invoice_number && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              📑 Inv #{order.invoice_number}
+                            </span>
+                          )}
                         </div>
                         {order.quantity !== undefined && order.quantity > 0 && (
                           <span className="text-[11px] text-slate-500 font-mono">
@@ -885,6 +927,32 @@ export const InboundTrackingTab: React.FC<InboundTrackingTabProps> = ({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* FETCH INVOICES QUICK IMPORT MODAL */}
+      <FetchPurchaseInvoicesModal
+        isOpen={isFetchModalOpen}
+        onClose={() => setIsFetchModalOpen(false)}
+        existingOrders={orders}
+        onImportInvoices={handleImportInvoices}
+        currentUser={currentUser}
+      />
+
+      {/* NON-INTRUSIVE SUCCESS TOAST */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-bounce-in bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3">
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+            ✓
+          </div>
+          <span className="text-xs font-bold text-slate-100">{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="text-slate-400 hover:text-white text-xs font-bold ml-1 transition-colors"
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

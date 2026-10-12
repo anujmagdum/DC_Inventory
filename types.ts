@@ -394,6 +394,9 @@ export interface InboundOrderTracking {
   notes?: string;
   timestamp: number;
   created_by?: string;
+  invoice_number?: string;
+  invoice_id?: string;
+  po_number?: string;
 }
 
 export interface InvoiceEditHistoryEntry {
